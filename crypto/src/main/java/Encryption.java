@@ -41,7 +41,7 @@ import com.virgilsecurity.sdk.crypto.VirgilCrypto;
 import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
 
 /**
- * @author Andrii Iakovenko
+ * @author Danylo Oliinykrii Iakovenko
  *
  */
 public class Encryption {

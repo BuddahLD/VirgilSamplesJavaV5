@@ -49,7 +49,7 @@ import com.virgilsecurity.sdk.utils.VirgilCardValidator;
 /**
  * Virgil Client quickstart.
  *
- * @author Andrii Iakovenko
+ * @author Danylo Oliinykrii Iakovenko
  *
  */
 public class Quickstart {

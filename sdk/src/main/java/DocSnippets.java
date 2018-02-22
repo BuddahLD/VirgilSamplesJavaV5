@@ -31,13 +31,20 @@
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.util.Arrays;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
+import com.virgilsecurity.sdk.cards.Card;
+import com.virgilsecurity.sdk.cards.CardManager;
+import com.virgilsecurity.sdk.cards.validation.CardVerifier;
+import com.virgilsecurity.sdk.cards.validation.VirgilCardVerifier;
+import com.virgilsecurity.sdk.client.CardClient;
 import com.virgilsecurity.sdk.client.exceptions.VirgilKeyIsAlreadyExistsException;
+import com.virgilsecurity.sdk.client.exceptions.VirgilServiceException;
 import com.virgilsecurity.sdk.client.model.IdentityType;
+import com.virgilsecurity.sdk.common.TimeSpan;
+import com.virgilsecurity.sdk.crypto.*;
 import com.virgilsecurity.sdk.crypto.Crypto;
-import com.virgilsecurity.sdk.crypto.KeysType;
-import com.virgilsecurity.sdk.crypto.VirgilCrypto;
 import com.virgilsecurity.sdk.crypto.exceptions.CryptoException;
 import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
 import com.virgilsecurity.sdk.highlevel.AppCredentials;
@@ -53,73 +60,117 @@ import com.virgilsecurity.sdk.highlevel.VirgilBuffer;
 import com.virgilsecurity.sdk.highlevel.VirgilCard;
 import com.virgilsecurity.sdk.highlevel.VirgilCards;
 import com.virgilsecurity.sdk.highlevel.VirgilKey;
+import com.virgilsecurity.sdk.jwt.JwtGenerator;
+import com.virgilsecurity.sdk.jwt.accessProviders.GeneratorJwtProvider;
+import com.virgilsecurity.sdk.jwt.contract.AccessTokenProvider;
+import com.virgilsecurity.sdk.storage.JsonFileKeyStorage;
+import com.virgilsecurity.sdk.storage.KeyStorage;
+import com.virgilsecurity.sdk.storage.PrivateKeyStorage;
+import com.virgilsecurity.sdk.utils.ConvertionUtils;
+import com.virgilsecurity.sdk.utils.Tuple;
 
 /**
- * @author Andrii Iakovenko
- *
+ * @author Danylo Oliinyk
  */
 public class DocSnippets {
 
-    VirgilApi virgil;
+    CardManager cardManager;
+    CardCrypto cardCrypto;
+    VirgilCrypto virgilCrypto;
+    AccessTokenProvider tokenProvider;
+    JwtGenerator jwtGenerator;
+
+    private void initialize_json_web_token_generator_and_provider() {
+        // [API_PRIVATE_KEY_BASE_64] you can find in Virgil dashboard
+        String apiKeyBase64 = "[API_PRIVATE_KEY_BASE_64]";
+        byte[] privateKeyData = ConvertionUtils.base64ToBytes(apiKeyBase64);
+
+        // Import a private key
+        VirgilCrypto crypto = new VirgilCrypto();
+        PrivateKey apiKey = null;
+        try {
+            apiKey = crypto.importPrivateKey(privateKeyData);
+        } catch (CryptoException e) {
+            e.printStackTrace();
+        }
+
+        // Lifetime of json web token, after specified time span it will be expired
+        TimeSpan ttl = TimeSpan.fromTime(5, TimeUnit.MINUTES); // 5 minutes to expire
+
+        // [APP_ID] and [API_PUBLIC_KEY] you can find in Virgil dashboard
+        jwtGenerator = new JwtGenerator("[APP_ID]", apiKey, "[API_PUBLIC_KEY]", ttl, new VirgilAccessTokenSigner());
+
+        // [IDENTITY] should be equal to the Card's identity that will be published (!!!)
+        tokenProvider = new GeneratorJwtProvider(jwtGenerator, "[IDENTITY]");
+    }
 
     private void initialize_virgil_sdk_client() {
-        VirgilApi virgil = new VirgilApiImpl("[YOUR_ACCESS_TOKEN_HERE]");
-    }
-
-    private void initialize_virgil_sdk_client_without_token() {
-        VirgilApi virgil = new VirgilApiImpl();
-    }
-
-    private void initialize_virgil_sdk_server() throws FileNotFoundException {
-        AppCredentials credentials = new AppCredentials();
-        credentials.setAppId("[YOUR_APP_ID_HERE]");
-        credentials.setAppKey(
-                VirgilBuffer.from(new FileInputStream("[YOUR_APP_KEY_FILEPATH_HERE]"), StringEncoding.Base64));
-        credentials.setAppKeyPassword("[YOUR_APP_KEY_PASSWORD_HERE]");
-
-        VirgilApiContext context = new VirgilApiContext("[YOUR_ACCESS_TOKEN_HERE]");
-        context.setCredentials(credentials);
-
-        VirgilApi virgil = new VirgilApiImpl(context);
+        cardCrypto = new VirgilCardCrypto();
+        CardVerifier cardVerifier = new VirgilCardVerifier(cardCrypto);
+        cardManager = new CardManager.Builder().setAccessTokenProvider(tokenProvider)
+                                               .setCrypto(cardCrypto)
+                                               .setCardVerifier(cardVerifier)
+                                               .build();
     }
 
     private void data_decryption() throws VirgilException {
         String ciphertext = "Base64 encoded string";
 
-        /** Snippet starts here */
-
         // load a Virgil Key from device storage
-        VirgilKey bobKey = virgil.getKeys().load("[KEY_NAME]", "[OPTIONAL_KEY_PASSWORD]");
+        VirgilPrivateKeyExporter privateKeyExporter = new VirgilPrivateKeyExporter(virgilCrypto);
+        KeyStorage keyStorage = new JsonFileKeyStorage();
+        PrivateKeyStorage privateKeyStorage = new PrivateKeyStorage(privateKeyExporter, keyStorage);
 
-        // decrypt a ciphertext using loaded Virgil Key
-        String originalMessage = bobKey.decrypt(ciphertext).toString();
+        Tuple<PrivateKey, Map<String, String>> privateKeyEntry = privateKeyStorage.load(
+                "[KEY_NAME]"); // TODO: 2/22/18 add Password
+        PrivateKey bobKey = privateKeyEntry.getLeft();
+
+        // decrypt a ciphertext using loaded Virgil Private Key
+        byte[] decryptedMessage = virgilCrypto.decrypt(ConvertionUtils.base64ToBytes(ciphertext),
+                                                       (VirgilPrivateKey) bobKey);
+
+        String originalMessage = ConvertionUtils.toString(decryptedMessage);
     }
 
-    private void data_encryption() throws VirgilException {
-        /** Snippet starts here */
-
+    private void data_encryption() throws VirgilException, VirgilServiceException {
         // search for Virgil Cards
-        VirgilCards bobCards = virgil.getCards().find("bob");
+        List<Card> bobCards = cardManager.searchCards("[IDENTITY_FOR_SEARCH]");
 
         String message = "Hey Bob, how it's going bro?";
 
+        List<VirgilPublicKey> bobRelevantCardsPublicKeys = new ArrayList<>();
+        for (Card card : bobCards) {
+            if (!card.isOutdated()) {
+                bobRelevantCardsPublicKeys.add((VirgilPublicKey) card.getPublicKey());
+            }
+        }
+
         // encrypt the message using found Virgil Cards
-        String ciphertext = bobCards.encrypt(message).toString(StringEncoding.Base64);
+        byte[] encodedMessage = virgilCrypto.encrypt(message.getBytes(), bobRelevantCardsPublicKeys);
+        String ciphertext = ConvertionUtils.toBase64String(encodedMessage);
     }
 
-    private void decrypt_verify() throws VirgilException {
+    private void decrypt_verify() throws VirgilException, VirgilServiceException {
         String ciphertext = "Base64 encoded string";
 
-        /** Snippet starts here */
-
         // load a Virgil Key from device storage
-        VirgilKey bobKey = virgil.getKeys().load("[KEY_NAME]", "[OPTIONAL_KEY_PASSWORD]");
+        VirgilPrivateKeyExporter privateKeyExporter = new VirgilPrivateKeyExporter(virgilCrypto);
+        KeyStorage keyStorage = new JsonFileKeyStorage();
+        PrivateKeyStorage privateKeyStorage = new PrivateKeyStorage(privateKeyExporter, keyStorage);
+
+        Tuple<PrivateKey, Map<String, String>> privateKeyEntry = privateKeyStorage.load(
+                "[KEY_NAME]"); // TODO: 2/22/18 add Password
+        PrivateKey bobKey = privateKeyEntry.getLeft();
 
         // get a sender's Virgil Card
-        VirgilCard aliceCard = virgil.getCards().get("[ALICE_CARD_ID]");
+        Card aliceCard = cardManager.getCard("[ALICE_CARD_ID]");
 
         // decrypt the message
-        String originalMessage = bobKey.decryptThenVerify(ciphertext, aliceCard).toString();
+        byte[] decryptedMessage = virgilCrypto.decryptThenVerify(ConvertionUtils.base64ToBytes(ciphertext),
+                                                                 (VirgilPrivateKey) bobKey,
+                                                                 Collections.singletonList(
+                                                                         (VirgilPublicKey) aliceCard.getPublicKey()));
+        String originalMessage = ConvertionUtils.toString(decryptedMessage);
     }
 
     private void encrypting_for_multiple() throws VirgilException {

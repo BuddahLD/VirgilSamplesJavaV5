@@ -46,7 +46,7 @@ import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
 /**
  * This example shows how to encrypt file with public key and decrypt it back.
  * 
- * @author Andrii Iakovenko
+ * @author Danylo Oliinykrii Iakovenko
  *
  */
 public class FileEncryption {

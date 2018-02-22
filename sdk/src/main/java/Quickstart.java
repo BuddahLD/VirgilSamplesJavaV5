@@ -51,7 +51,7 @@ import com.virgilsecurity.sdk.utils.VirgilCardValidator;
  * This sample will help you get started using the Crypto Library and Virgil Keys Services for the most popular
  * platforms and languages.
  * 
- * @author Andrii Iakovenko
+ * @author Danylo Oliinykrii Iakovenko
  *
  */
 public class Quickstart {
