@@ -43,7 +43,7 @@ import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
 /**
  * Authenticated encryption sample.
  * 
- * @author Danylo Oliinykrii Iakovenko
+ * @author Danylo Oliinyk
  *
  */
 public class AuthenticatedEncryption {

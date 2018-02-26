@@ -38,7 +38,7 @@ import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
 /**
  * This is sample of operations with Crypto Keys.
  *
- * @author Danylo Oliinykrii Iakovenko
+ * @author Danylo Oliinyk
  *
  */
 public class CryptoKeys {

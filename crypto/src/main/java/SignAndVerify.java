@@ -42,7 +42,7 @@ import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
 /**
  * This sample shows how to sign and verify data.
  * 
- * @author Danylo Oliinykrii Iakovenko
+ * @author Danylo Oliinyk
  *
  */
 public class SignAndVerify {
