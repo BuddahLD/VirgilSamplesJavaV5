@@ -1,13 +1,14 @@
 apply plugin: 'com.android.application'
+apply from: 'dependencies.gradle'
 
 android {
-    compileSdkVersion 24
-    buildToolsVersion "24.0.2"
+    compileSdkVersion 27
+    buildToolsVersion '26.0.2'
 
     defaultConfig {
         applicationId "com.virgilsecurity.virgilsamples"
         minSdkVersion 19
-        targetSdkVersion 24
+        targetSdkVersion 19
         versionCode 1
         versionName "1.0"
     }
@@ -20,17 +21,17 @@ android {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:appcompat-v7:24.2.1'
-    compile 'com.virgilsecurity.sdk:crypto-android:4.3.3@aar'
-    compile 'com.virgilsecurity.sdk:sdk-android:4.3.3@aar'
-    compile 'com.google.code.gson:gson:2.7'
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'com.android.support:appcompat-v7:27.0.2'
+    implementation virgilSdk.sdk
+    implementation virgilSdk.crypto
+    implementation 'com.google.code.gson:gson:2.8.0'
 
     // Required for local unit tests (JUnit 4 framework)
-    testCompile 'junit:junit:4.12'
+    testImplementation 'junit:junit:4.12'
 
     // Required for instrumented tests
-    androidTestCompile 'com.android.support:support-annotations:24.2.1'
-    androidTestCompile 'com.android.support.test:runner:0.5'
+    androidTestCompile 'com.android.support:support-annotations:27.0.2'
+    androidTestCompile 'com.android.support.test:runner:1.0.1'
     androidTestCompile 'commons-lang:commons-lang:2.6'
 }

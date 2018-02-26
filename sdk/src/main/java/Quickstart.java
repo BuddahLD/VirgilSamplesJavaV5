@@ -106,11 +106,8 @@ public class Quickstart {
                                                                   keyPair.getPublicKey(),
                                                                   "[IDENTITY]");
 
-        // then, use ModelSigner class to sign request with owner signature.
-        ModelSigner modelSigner = new ModelSigner(cardCrypto);
-        modelSigner.selfSign(cardModel, keyPair.getPrivateKey());
-
         // then, use ModelSigner class to sign request with API signature.
+        ModelSigner modelSigner = new ModelSigner(cardCrypto);
         modelSigner.sign(cardModel, appID, apiKey);
 
         // Publish a Virgil Card
@@ -139,9 +136,6 @@ public class Quickstart {
                                                                keyPair.getPublicKey(),
                                                                "[IDENTITY]",
                                                                   previousCardId);
-
-        // then, use ModelSigner class to sign request with owner signature.
-        modelSigner.selfSign(cardModel, keyPair.getPrivateKey());
 
         // then, use ModelSigner class to sign request with API signature.
         modelSigner.sign(cardModel, appID, apiKey);

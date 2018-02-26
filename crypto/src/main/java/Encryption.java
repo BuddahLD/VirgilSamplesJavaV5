@@ -1,4 +1,4 @@
-
+package main.java;
 /*
  * Copyright (c) 2016, Virgil Security, Inc.
  *
@@ -29,16 +29,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-
 import com.virgilsecurity.crypto.VirgilBase64;
-import com.virgilsecurity.sdk.crypto.Crypto;
-import com.virgilsecurity.sdk.crypto.KeyPair;
-import com.virgilsecurity.sdk.crypto.PrivateKey;
-import com.virgilsecurity.sdk.crypto.PublicKey;
-import com.virgilsecurity.sdk.crypto.VirgilCrypto;
+import com.virgilsecurity.sdk.crypto.*;
 import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  * @author Danylo Oliinyk
@@ -46,29 +41,25 @@ import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
  */
 public class Encryption {
 
-    /**
-     * @param args
-     * @throws IOException
-     */
-    public static void main(String[] args) throws IOException, VirgilException {
+    public static void main(String[] args) throws VirgilException {
         String text = "Encrypt me, Please!!!";
 
         // Initialize Crypto
-        Crypto crypto = new VirgilCrypto();
+        VirgilCrypto crypto = new VirgilCrypto();
 
         // Generate generate public/private key pair for key recipient
-        KeyPair keyPair = crypto.generateKeys();
+        VirgilKeyPair keyPair = crypto.generateKeys();
 
         PublicKey publicKey = keyPair.getPublicKey();
         PrivateKey privateKey = keyPair.getPrivateKey();
 
         // Encrypting data for multiple recipients key/password
-        byte[] encryptedData = crypto.encrypt(text.getBytes(), new PublicKey[] { publicKey });
+        byte[] encryptedData = crypto.encrypt(text.getBytes(), (VirgilPublicKey) publicKey);
 
         System.out.println(String.format("Cipher text in Base64:\n %1$s", VirgilBase64.encode(encryptedData)));
 
         // Decrypt data with private key
-        byte[] decryptedData = crypto.decrypt(encryptedData, privateKey);
+        byte[] decryptedData = crypto.decrypt(encryptedData, (VirgilPrivateKey) privateKey);
 
         System.out.println(String.format("Decrypted text:\n %1$s", new String(decryptedData, StandardCharsets.UTF_8)));
     }

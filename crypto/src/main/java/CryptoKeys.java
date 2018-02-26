@@ -1,8 +1,9 @@
-import com.virgilsecurity.sdk.crypto.Crypto;
-import com.virgilsecurity.sdk.crypto.KeyPair;
+package main.java;
+
 import com.virgilsecurity.sdk.crypto.PrivateKey;
 import com.virgilsecurity.sdk.crypto.PublicKey;
 import com.virgilsecurity.sdk.crypto.VirgilCrypto;
+import com.virgilsecurity.sdk.crypto.VirgilKeyPair;
 import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
 
 /*
@@ -45,13 +46,13 @@ public class CryptoKeys {
 
     public static void main(String[] args) throws VirgilException {
         // Initialize Crypto
-        Crypto crypto = new VirgilCrypto();
+        VirgilCrypto crypto = new VirgilCrypto();
 
         // Generate key pair
-        KeyPair aliceKeys = crypto.generateKeys();
+        VirgilKeyPair aliceKeys = crypto.generateKeys();
 
         // Export keys
-        byte[] exportedPrivateKey = crypto.exportPrivateKey(aliceKeys.getPrivateKey());
+        byte[] exportedPrivateKey = crypto.exportPrivateKey(aliceKeys.getPrivateKey() , null);
         byte[] exportedPublicKey = crypto.exportPublicKey(aliceKeys.getPublicKey());
 
         // Import keys

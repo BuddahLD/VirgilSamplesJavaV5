@@ -1,4 +1,4 @@
-
+package main.java;
 /*
  * Copyright (c) 2016, Virgil Security, Inc.
  *
@@ -29,15 +29,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import java.io.IOException;
-
 import com.virgilsecurity.crypto.VirgilBase64;
-import com.virgilsecurity.sdk.crypto.Crypto;
-import com.virgilsecurity.sdk.crypto.KeyPair;
-import com.virgilsecurity.sdk.crypto.PrivateKey;
-import com.virgilsecurity.sdk.crypto.PublicKey;
-import com.virgilsecurity.sdk.crypto.VirgilCrypto;
+import com.virgilsecurity.sdk.crypto.*;
 import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
+
+import java.io.IOException;
 
 /**
  * This sample shows how to sign and verify data.
@@ -47,29 +43,25 @@ import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
  */
 public class SignAndVerify {
 
-    /**
-     * @param args
-     * @throws IOException
-     */
-    public static void main(String[] args) throws IOException, VirgilException {
+    public static void main(String[] args) throws VirgilException {
         String text = "Sign me, Please!!!";
 
         // Initialize Crypto
-        Crypto crypto = new VirgilCrypto();
+        VirgilCrypto crypto = new VirgilCrypto();
 
         // Generate generate public/private key pair for key recipient
-        KeyPair keyPair = crypto.generateKeys();
+        VirgilKeyPair keyPair = crypto.generateKeys();
 
         PublicKey publicKey = keyPair.getPublicKey();
         PrivateKey privateKey = keyPair.getPrivateKey();
 
         // Sign data with private key
-        byte[] sign = crypto.sign(text.getBytes(), privateKey);
+        byte[] sign = crypto.generateSignature(text.getBytes(), (VirgilPrivateKey) privateKey);
 
         System.out.println(String.format("Digital signature in Base64: %1$s", VirgilBase64.encode(sign)));
 
         // Verify data with sign and public key
-        boolean isValid = crypto.verify(text.getBytes(), sign, publicKey);
+        boolean isValid = crypto.verifySignature(text.getBytes(), sign, (VirgilPublicKey) publicKey);
 
         System.out.println(String.format("Verification result is: %1$b", isValid));
     }

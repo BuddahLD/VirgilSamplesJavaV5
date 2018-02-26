@@ -27,24 +27,25 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package simpleclient;
+package main.java.simpleclient;
+
+import com.virgilsecurity.sdk.cards.Card;
+import com.virgilsecurity.sdk.cards.CardManager;
+import com.virgilsecurity.sdk.cards.ModelSigner;
+import com.virgilsecurity.sdk.cards.model.RawSignedModel;
+import com.virgilsecurity.sdk.cards.validation.CardVerifier;
+import com.virgilsecurity.sdk.cards.validation.VirgilCardVerifier;
+import com.virgilsecurity.sdk.client.exceptions.VirgilCardVerificationException;
+import com.virgilsecurity.sdk.common.TimeSpan;
+import com.virgilsecurity.sdk.crypto.*;
+import com.virgilsecurity.sdk.crypto.exceptions.CryptoException;
+import com.virgilsecurity.sdk.jwt.JwtGenerator;
+import com.virgilsecurity.sdk.jwt.accessProviders.GeneratorJwtProvider;
+import com.virgilsecurity.sdk.jwt.contract.AccessTokenProvider;
+import com.virgilsecurity.sdk.utils.ConvertionUtils;
 
 import java.util.List;
-
-import com.virgilsecurity.sdk.client.CardValidator;
-import com.virgilsecurity.sdk.client.RequestSigner;
-import com.virgilsecurity.sdk.client.VirgilClient;
-import com.virgilsecurity.sdk.client.exceptions.CardValidationException;
-import com.virgilsecurity.sdk.client.model.CardModel;
-import com.virgilsecurity.sdk.client.model.RevocationReason;
-import com.virgilsecurity.sdk.client.model.dto.SearchCriteria;
-import com.virgilsecurity.sdk.client.requests.PublishCardRequest;
-import com.virgilsecurity.sdk.client.requests.RevokeCardRequest;
-import com.virgilsecurity.sdk.crypto.Crypto;
-import com.virgilsecurity.sdk.crypto.KeyPair;
-import com.virgilsecurity.sdk.crypto.PrivateKey;
-import com.virgilsecurity.sdk.crypto.VirgilCrypto;
-import com.virgilsecurity.sdk.utils.VirgilCardValidator;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Virgil Client quickstart.
@@ -54,87 +55,98 @@ import com.virgilsecurity.sdk.utils.VirgilCardValidator;
  */
 public class Quickstart {
 
-	/**
-	 * Append '\n' symbol at the end of every line if you copy&paste private key
-	 * from App virgilkey.
-	 * 
-	 * Thus, key string should looks like: <pre>
-	 * "-----BEGIN ENCRYPTED PRIVATE KEY-----\n" +
-	 * "MIGhMF0GCSqGSIb3DQEFDTBQMC8GCSqSSIb3DQEFDDAiBBAov+hIn+3FEcXoVITK\n" +
-	 * "f79NAgIYXjAKBggqhkiG9w0CCjAdBglghkgBZQMEASoEEPaUOmPlpz8Py6ahLfCu\n" +
-	 * "5XkEQMVz+jdZMET8IuyxCkF8SSOogglSJlNSrS8INAwOIzft3Dyy1RoRSJAZRVk4\n" +
-	 * "c52FrwCceon7CUu6gCbkNHxh89U=\n" +
-	 * "-----END ENCRYPTED PRIVATE KEY-----"
-	 * </pre>
-	 * 
-	 */
-	private static final String PRIVATE_KEY = "[YOUR_APP_KEY_HERE]";
+	private static final String PRIVATE_KEY = "[YOUR_API_KEY_HERE]";
 
 	public static void main(String[] args) throws Exception {
 
-		// Initializing an API Client
-		VirgilClient client = new VirgilClient("[YOUR_ACCESS_TOKEN_HERE]");
 
-		// Initializing Crypto
-		Crypto crypto = new VirgilCrypto();
+		String appID = "[YOUR_APP_ID_HERE]";
+		String apiKeyBase64 = "[API_PRIVATE_KEY_BASE_64]";
+		byte[] privateKeyData = ConvertionUtils.base64ToBytes(apiKeyBase64);
+
+		// Initializing Virgil Crypto
+		VirgilCrypto crypto = new VirgilCrypto();
+		// Initializing Card Crypto
+		CardCrypto cardCrypto = new VirgilCardCrypto();
+		// Initializing Card Verifier
+		CardVerifier cardVerifier = new VirgilCardVerifier(cardCrypto);
+
+		PrivateKey apiKey = null;
+		try {
+			apiKey = crypto.importPrivateKey(privateKeyData);
+		} catch (CryptoException e) {
+			e.printStackTrace();
+		}
+
+		// Lifetime of json web token, after specified time span it will be expired
+		TimeSpan ttl = TimeSpan.fromTime(5, TimeUnit.MINUTES); // 5 minutes to expire
+
+		// Initializing Jwt generator
+		// [APP_ID] and [API_PUBLIC_KEY] you can find in Virgil dashboard
+		JwtGenerator jwtGenerator = new JwtGenerator("[APP_ID]", apiKey, "[API_PUBLIC_KEY]", ttl,
+													 new VirgilAccessTokenSigner());
+
+		// [IDENTITY] should be equal to the Card's identity that will be published (!!!)
+		AccessTokenProvider tokenProvider = new GeneratorJwtProvider(jwtGenerator, "[IDENTITY]");
+
+		// Initializing an API Client
+		CardManager cardManager = new CardManager.Builder()
+				.setCrypto(cardCrypto)
+				.setAccessTokenProvider(tokenProvider)
+				.setCardVerifier(cardVerifier)
+				.build();
 
 		// Creating a Virgil Card
-		String appID = "[YOUR_APP_ID_HERE]";
-		String appKeyPassword = "[YOUR_APP_KEY_PASSWORD_HERE]";
-		byte[] appKeyData = PRIVATE_KEY.getBytes();
 
-		PrivateKey appKey = crypto.importPrivateKey(appKeyData, appKeyPassword);
+		// Generate a new Public/Private keypair using VirgilCrypto class.
+		VirgilKeyPair keyPair = crypto.generateKeys();
 
-		/** Generate a new Public/Private keypair using VirgilCrypto class. */
-		KeyPair aliceKeys = crypto.generateKeys();
+		// Prepare raw card to publish
+		RawSignedModel cardModel = cardManager.generateRawCard(keyPair.getPrivateKey(),
+															   keyPair.getPublicKey(),
+															   "[IDENTITY]");
 
-		/** Prepare request */
-		byte[] exportedPublicKey = crypto.exportPublicKey(aliceKeys.getPublicKey());
-		PublishCardRequest publishCardRequest = new PublishCardRequest("alice", "username", exportedPublicKey);
+        // then, use ModelSigner class to sign request with API signature.
+		ModelSigner modelSigner = new ModelSigner(cardCrypto);
+		modelSigner.sign(cardModel, appID, apiKey);
 
-		/**
-		 * then, use RequestSigner class to sign request with owner and app
-		 * keys.
-		 */
-		RequestSigner requestSigner = new RequestSigner(crypto);
-
-		requestSigner.selfSign(publishCardRequest, aliceKeys.getPrivateKey());
-		requestSigner.authoritySign(publishCardRequest, appID, appKey);
-
-		/** Publish a Virgil Card */
-		CardModel aliceCard = client.publishCard(publishCardRequest);
-		System.out.println("Alice card: " + aliceCard.getId());
+		// Publish a Virgil Card
+		Card aliceCard = cardManager.publishCard(cardModel);
+		System.out.println("Published card: " + aliceCard.getIdentifier());
 
 		// Get Virgil Card
-		CardModel foundCard = client.getCard(aliceCard.getId());
-		System.out.println("Found card: " + foundCard.getId());
+		Card receivedCard = cardManager.getCard(aliceCard.getIdentifier());
+		System.out.println("Received card: " + receivedCard.getIdentifier());
 
 		// Search for Virgil Cards
-		SearchCriteria criteria = SearchCriteria.byIdentity("alice");
-		List<CardModel> cards = client.searchCards(criteria);
-
+		List<Card> cards = cardManager.searchCards("[IDENTITY]");
 		System.out.println(String.format("%1$d card(s) found", cards.size()));
 
-		// Validating a Virgil Cards
-		CardValidator cardValidator = new VirgilCardValidator(crypto);
-		client.setCardValidator(cardValidator);
-
+		// If need - you can catch validation exception.
+		List<Card> cardsForValidation;
 		try {
-			cards = client.searchCards(criteria);
-		} catch (CardValidationException e) {
+			cardsForValidation = cardManager.searchCards("");
+		} catch (VirgilCardVerificationException e) {
 			// Handle validation exception here
 		}
 
-		// Revoking a Virgil Card
-		/** Use your card ID */
-		String cardId = aliceCard.getId();
+		// Outdating a Virgil Card
+		// You have to publish card with previousCardId of Card that you want to be outdated
+		String previousCardId = aliceCard.getIdentifier();
 
-		RevokeCardRequest revokeRequest = new RevokeCardRequest(cardId, RevocationReason.UNSPECIFIED);
+		// Prepare raw card to publish with previousCardId which is to be outdated
+		RawSignedModel cardModelNew = cardManager.generateRawCard(keyPair.getPrivateKey(),
+																  keyPair.getPublicKey(),
+																  "[IDENTITY]",
+																  previousCardId);
 
-		requestSigner.selfSign(revokeRequest, aliceKeys.getPrivateKey());
-		requestSigner.authoritySign(revokeRequest, appID, appKey);
+		// then, use ModelSigner class to sign request with API signature.
+		modelSigner.sign(cardModel, appID, apiKey);
 
-		client.revokeCard(revokeRequest);
-		System.out.println("Alice card removed");
+		// Publish a Virgil Card and make outdated the old one
+		Card aliceCardNew = cardManager.publishCard(cardModel);
+
+		Card outdatedCard = cardManager.getCard(aliceCard.getIdentifier());
+		System.out.println("Alice card is outdated: " + outdatedCard.isOutdated());
 	}
 }

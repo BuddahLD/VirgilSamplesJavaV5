@@ -1,17 +1,9 @@
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+package main.java;
 
-import com.virgilsecurity.sdk.crypto.Crypto;
-import com.virgilsecurity.sdk.crypto.KeyPair;
-import com.virgilsecurity.sdk.crypto.PrivateKey;
-import com.virgilsecurity.sdk.crypto.PublicKey;
-import com.virgilsecurity.sdk.crypto.VirgilCrypto;
+import com.virgilsecurity.sdk.crypto.*;
 import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
+
+import java.io.*;
 
 /*
  * Copyright (c) 2016, Virgil Security, Inc.
@@ -45,9 +37,8 @@ import com.virgilsecurity.sdk.crypto.exceptions.VirgilException;
 
 /**
  * This example shows how to encrypt file with public key and decrypt it back.
- * 
- * @author Danylo Oliinyk
  *
+ * @author Danylo Oliinyk
  */
 public class FileEncryption {
 
@@ -59,10 +50,10 @@ public class FileEncryption {
         System.out.println();
 
         // Initialize Crypto
-        Crypto crypto = new VirgilCrypto();
+        VirgilCrypto crypto = new VirgilCrypto();
 
         // Generate generate public/private key pair for key recipient
-        KeyPair keyPair = crypto.generateKeys();
+        VirgilKeyPair keyPair = crypto.generateKeys();
 
         PublicKey publicKey = keyPair.getPublicKey();
         PrivateKey privateKey = keyPair.getPrivateKey();
@@ -72,16 +63,16 @@ public class FileEncryption {
         System.out.println("Encoding file");
 
         try (InputStream in = new FileInputStream(fileName); OutputStream out = new FileOutputStream(encodedFileName)) {
-            crypto.encrypt(in, out, new PublicKey[] { publicKey });
+            crypto.encrypt(in, out, (VirgilPublicKey) publicKey);
         }
 
         // Decode file
         String decodedFileName = fileName + ".decoded";
         System.out.println("Decoding file");
         try (InputStream in = new FileInputStream(encodedFileName);
-                OutputStream out = new FileOutputStream(decodedFileName)) {
+             OutputStream out = new FileOutputStream(decodedFileName)) {
 
-            crypto.decrypt(in, out, privateKey);
+            crypto.decrypt(in, out, (VirgilPrivateKey) privateKey);
         }
 
         System.out.println("Done");
